@@ -243,7 +243,6 @@ async def test_singleswitch_requests(zigpy_device_from_quirk, quirk):
     status = await switch_cluster.command(0x0002)
     assert status == foundation.Status.UNSUP_CLUSTER_COMMAND
 
-
 async def test_tuya_data_conversion():
     """Test tuya conversion from Data to ztype and reverse."""
     assert Data([4, 0, 0, 1, 39]).to_value(t.uint32_t) == 295

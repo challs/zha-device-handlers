@@ -2,6 +2,8 @@
 
 from asynctest import CoroutineMock
 import pytest
+from typing import Literal, Union
+
 import zigpy.application
 import zigpy.device
 import zigpy.types
@@ -159,3 +161,66 @@ def assert_signature_matches_quirk():
         device = zigpy.quirks.get_device(test_dev)
         assert isinstance(device, quirk)
     return _check
+
+@pytest.fixture
+def input_cluster(zigpy_device_from_quirk):
+    """
+    Return a function which can create a test device with the given input cluster
+    """
+    def _input_cluster(quirk, endpoint: int, cluster: str) -> zigpy.quirks.CustomCluster:
+        # Create test device for the quirk
+        device: zigpy.quirks.CustomDevice = zigpy_device_from_quirk(quirk)
+
+        # The cluster we wish to test
+        cluster = getattr(device[endpoint], cluster)
+
+        return cluster
+
+    return _input_cluster
+
+@pytest.fixture
+def output_cluster(zigpy_device_from_quirk):
+    """
+    Return a function which can create a test device with the given output cluster
+    """
+    def _output_cluster(quirk, endpoint: int, cluster_id: int) -> zigpy.quirks.CustomCluster:
+        # Create test device for the quirk
+        device: zigpy.quirks.CustomDevice = zigpy_device_from_quirk(quirk)
+
+        # The cluster we wish to test
+        cluster = device.endpoints[endpoint].out_clusters[cluster_id]
+        return cluster
+
+    return _output_cluster
+
+@pytest.fixture
+def verify_event(zigpy_device_from_quirk, input_cluster):
+    """
+    Check that a quick generates an event from a given message
+
+    This provides a function which can be called to check that a message
+    sent to a quirk causes the given event to be sent.
+    """
+    def _verify(cluster: zigpy.quirks.CustomCluster, message: list[Literal], event_command: str, event_args: Union[int, dict]):
+        class EventChecker:
+            """
+            Class that listens an incoming zha event and checks its contents
+            """
+            event_received = False
+            def zha_send_event(self, command: str, args: Union[int, dict]):
+                assert command == event_command, f"Event error: expected command {event_command} but received {command}"
+                assert args == event_args, f"Event error: expected args {event_args} but received {args}"
+                assert not self.event_received, "Duplicate event received"
+                self.event_received = True
+
+        listener = EventChecker()
+        cluster.add_listener(listener)
+
+        # Generate a message and pass to the cluster to handle
+        hdr, args = cluster.deserialize(message)
+        cluster.handle_message(hdr, args)
+
+        # Check that the listener received a valid event
+        assert listener.event_received
+
+    return _verify
