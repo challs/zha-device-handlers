@@ -20,12 +20,15 @@ from zhaquirks.const import (
     ON,
     OUTPUT_CLUSTERS,
     PROFILE_ID,
+    SHORT_PRESS,
+    DIM_DOWN,
     ZONE_STATE,
 )
 from zhaquirks.tuya import Data, TuyaManufClusterAttributes
 import zhaquirks.tuya.ts0042
 import zhaquirks.tuya.ts0043
 import zhaquirks.tuya.ts0601_electric_heating
+import zhaquirks.tuya.ts1001
 import zhaquirks.tuya.ts0601_motion
 import zhaquirks.tuya.ts0601_siren
 import zhaquirks.tuya.ts0601_trv
@@ -242,6 +245,31 @@ async def test_singleswitch_requests(zigpy_device_from_quirk, quirk):
 
     status = await switch_cluster.command(0x0002)
     assert status == foundation.Status.UNSUP_CLUSTER_COMMAND
+
+
+# On command (after pressing off)
+
+# (profileId=260, clusterId=6, sourceEndpoint=1, destinationEndpoint=1, options=<EmberApsOption.APS_OPTION_ENABLE_ROUTE_DISCOVERY: 256>, groupId=0, sequence=190), 192, -52, 0xc527, 255, 255, b'\x01\x1c\xfd\x00']
+# [zigpy.zcl] [0xc527:1:0x0006] ZCL deserialize: <ZCLHeader frame_control=<FrameControl frame_type=CLUSTER_COMMAND manufacturer_specific=False is_reply=False disable_default_response=False> manufacturer=None tsn=28 command_id=253>
+
+# Down button
+# Received command: AF.IncomingMsg.Callback(GroupId=0x0000, ClusterId=6, SrcAddr=0xF33D, SrcEndpoint=1, DstEndpoint=1, WasBroadcast=<Bool.false: 0>, LQI=156, SecurityUse=<Bool.false: 0>, TimeStamp=14729584, TSN=0, Data=b'\x01\x3A\x00', MacSrcAddr=0xF33D, MsgResultRadius=11)
+
+@pytest.mark.parametrize("quirk", [
+    (zhaquirks.tuya.ts1001.TuyaDimRemote1001),
+])
+@pytest.mark.parametrize("endpoint, cluster, message, event_command, event_args", [
+    # On
+    (1, 6, '011cfd00', SHORT_PRESS, []),
+    # Dim step down
+    (1, 8, '01640201330A00', SHORT_PRESS, DIM_DOWN)
+    #(1, 6, '0121FD01', SHORT_PRESS, []),
+    #(1, 6, '013A00', SHORT_PRESS, []),
+])
+async def test_ts1001_dimmer_remote(output_cluster, verify_event, quirk, endpoint, cluster, message, event_command, event_args):
+    out_cluster = output_cluster(quirk, endpoint, cluster)
+    message_bytes = bytes.fromhex(message)
+    verify_event(out_cluster, message_bytes, event_command, event_args)
 
 async def test_tuya_data_conversion():
     """Test tuya conversion from Data to ztype and reverse."""
@@ -1207,6 +1235,7 @@ async def test_eheat_send_attribute(zigpy_device_from_quirk, quirk):
         (zhaquirks.tuya.ts0044.TuyaSmartRemote0044TO, "_TZ3400_cdyjhasw"),
         (zhaquirks.tuya.ts0044.TuyaSmartRemote0044TO, "_TZ3400_pdyjhapl"),
         (zhaquirks.tuya.ts0044.TuyaSmartRemote0044TO, "_some_random_manuf"),
+        (zhaquirks.tuya.ts1001.TuyaDimRemote1001, "_TZ3000_ztrfrcsu"),
     ),
 )
 async def test_tuya_wildcard_manufacturer(zigpy_device_from_quirk, quirk, manufacturer):
