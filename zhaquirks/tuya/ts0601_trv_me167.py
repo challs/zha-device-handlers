@@ -36,6 +36,18 @@ from zigpy.zcl.clusters.hvac import Thermostat
 
 _LOGGER = logging.getLogger(__name__)
 
+# info from https://github.com/zigpy/zha-device-handlers/issues/1818
+# and https://github.com/dresden-elektronik/deconz-rest-plugin/issues/6318
+# and https://github.com/twhittock/avatto_me167/blob/main/me167.js
+
+# Display codes:
+#  OF - OFF state, anti freezing mode. Press button for 5 seconds to initiate pairing.
+#  LA - rod withdraws; mount on radiator then press rotation button to initiate calibration
+#  OP - Window is OPen due to temperature drop within 4 minutes
+#  Er - error status
+#  LC - Child Lock (long press to activate / deactivate)
+#  Ad - Anti descale mode (open + close every 2 weeks)
+
 ME167_TEMPERATURE_ATTR = 0x0205  # [0, 0, 0, 210] current room temp (decidegree)
 ME167_TARGET_TEMP_ATTR = 0x0204  # [0, 0, 0, 190] target room temp (decidegree)
 ME167_TEMP_CALIBRATION_ATTR = 0x0000  # DP 47 -> 2F
