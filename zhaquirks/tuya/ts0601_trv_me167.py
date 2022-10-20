@@ -58,7 +58,7 @@ ME167_STATE_ATTR = 0x0403  # [1] idle [0] heating /!\ inverted
 # minimum limit of temperature setting
 ME167_MIN_TEMPERATURE_VAL = 5  # degrees
 # maximum limit of temperature setting
-ME167_MAX_TEMPERATURE_VAL = 30  # degrees
+ME167_MAX_TEMPERATURE_VAL = 35  # degrees
 ME167ManufClusterSelf = {}
 
 
