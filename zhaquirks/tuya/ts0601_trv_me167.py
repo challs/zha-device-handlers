@@ -290,7 +290,7 @@ class ME167Thermostat(TuyaThermostatCluster):
             else:
                 self.error("Unsupported value for SystemMode")
 
-    def hass_climate_state_change(self, attrid, value):
+    def hass_climate_state_change(self, value):
         """Update of the HASS Climate gui state."""
         self.endpoint.device.thermostat_bus.listener_event("state_change", not value)
 
