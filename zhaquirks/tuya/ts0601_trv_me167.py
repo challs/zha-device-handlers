@@ -53,7 +53,7 @@ ME167_TARGET_TEMP_ATTR = 0x0204  # [0, 0, 0, 190] target room temp (decidegree)
 ME167_TEMP_CALIBRATION_ATTR = 0x0000  # DP 47 -> 2F
 ME167_CHILD_LOCK_ATTR = 0x0107  # [0] unlocked [1] child-locked
 ME167_ERROR_ATTR = 0x0000  # DP 35 -> 23
-ME167_MODE_ATTR = 0x0403  # [0] auto [1] heat [2] off
+ME167_MODE_ATTR = 0x0402  # [0] auto [1] heat [2] off
 ME167_STATE_ATTR = 0x0403  # [1] idle [0] heating /!\ inverted
 # minimum limit of temperature setting
 ME167_MIN_TEMPERATURE_VAL = 5  # degrees
