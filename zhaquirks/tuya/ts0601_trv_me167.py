@@ -50,9 +50,9 @@ _LOGGER = logging.getLogger(__name__)
 
 ME167_TEMPERATURE_ATTR = 0x0205  # [0, 0, 0, 210] current room temp (decidegree)
 ME167_TARGET_TEMP_ATTR = 0x0204  # [0, 0, 0, 190] target room temp (decidegree)
-ME167_TEMP_CALIBRATION_ATTR = 0x0000  # DP 47 -> 2F
+ME167_TEMP_CALIBRATION_ATTR = 0x022F  # (decidegree)
 ME167_CHILD_LOCK_ATTR = 0x0107  # [0] unlocked [1] child-locked
-ME167_ERROR_ATTR = 0x0000  # DP 35 -> 23
+ME167_BATTERY_STATE_ATTR = 0x0523  # [0] OK [1] Empty
 ME167_MODE_ATTR = 0x0402  # [0] auto [1] heat [2] off
 ME167_STATE_ATTR = 0x0403  # [1] idle [0] heating /!\ inverted
 # minimum limit of temperature setting
@@ -171,9 +171,11 @@ class ME167ManufCluster(TuyaManufClusterAttributes):
         {
             ME167_TEMPERATURE_ATTR: ("temperature", t.uint32_t, True),
             ME167_TARGET_TEMP_ATTR: ("target_temperature", t.uint32_t, True),
+            ME167_TEMP_CALIBRATION_ATTR: ("target_temperature", t.uint32_t, True),
             ME167_CHILD_LOCK_ATTR: ("child_lock", t.uint8_t, True),
             ME167_MODE_ATTR: ("mode", t.uint8_t, True),
             ME167_STATE_ATTR: ("state", t.uint8_t, True),
+            ME167_BATTERY_STATE_ATTR: ("battery_state", t.uint8_t, True),
         }
     )
 
@@ -181,6 +183,10 @@ class ME167ManufCluster(TuyaManufClusterAttributes):
         ME167_TEMPERATURE_ATTR: ("local_temperature", lambda value: value * 10),
         ME167_TARGET_TEMP_ATTR: (
             "occupied_heating_setpoint",
+            lambda value: value * 10,
+        ),
+        ME167_TEMP_CALIBRATION_ATTR: (
+            "local_temperature_calibration",
             lambda value: value * 10,
         ),
     }
@@ -206,6 +212,14 @@ class ME167ManufCluster(TuyaManufClusterAttributes):
         elif attrid == ME167_STATE_ATTR:
             self.endpoint.device.thermostat_bus.listener_event(
                 "hass_climate_state_change", value
+            )
+        elif attrid == ME167_BATTERY_STATE_ATTR:
+            self.endpoint.device.battery_bus.listener_event(
+                "battery_change", 0 if value == 1 else 127
+            )
+        elif attrid == ME167_TEMP_CALIBRATION_ATTR:
+            self.endpoint.device.ME167TempCalibration_bus.listener_event(
+                "set_value", value / 10
             )
 
 
@@ -240,6 +254,10 @@ class ME167Thermostat(TuyaThermostatCluster):
             lambda value: round(value / 10),
         ),
         "operation_preset": (ME167_MODE_ATTR, None),
+        "local_temperature_calibration": (
+            ME167_TEMP_CALIBRATION_ATTR,
+            lambda value: round(value / 10),
+        ),
     }
 
     def __init__(self, *args, **kwargs):
@@ -341,6 +359,49 @@ class ME167ChildLock(CustomTuyaOnOff):
             return {ME167_CHILD_LOCK_ATTR: value}
 
 
+class ME167TempCalibration(LocalDataCluster, AnalogOutput):
+    """Analog output for Temp Calibration."""
+
+    def __init__(self, *args, **kwargs):
+        """Init."""
+        super().__init__(*args, **kwargs)
+        self.endpoint.device.ME167TempCalibration_bus.add_listener(self)
+        self._update_attribute(
+            self.attributes_by_name["description"].id, "Temperature Calibration"
+        )
+        self._update_attribute(self.attributes_by_name["max_present_value"].id, 10)
+        self._update_attribute(self.attributes_by_name["min_present_value"].id, -10)
+        self._update_attribute(self.attributes_by_name["resolution"].id, 0.1)
+        self._update_attribute(self.attributes_by_name["application_type"].id, 13 << 16)
+        self._update_attribute(self.attributes_by_name["engineering_units"].id, 62)
+
+    def set_value(self, value):
+        """Set value."""
+        self._update_attribute(self.attributes_by_name["present_value"].id, value)
+
+    def get_value(self):
+        """Get value."""
+        return self._attr_cache.get(self.attributes_by_name["present_value"].id)
+
+    async def write_attributes(self, attributes, manufacturer=None):
+        """Override the default Cluster write_attributes."""
+        for attrid, value in attributes.items():
+            if isinstance(attrid, str):
+                attrid = self.attributes_by_name[attrid].id
+            if attrid not in self.attributes:
+                self.error("%d is not a valid attribute id", attrid)
+                continue
+            self._update_attribute(attrid, value)
+
+            await ME167ManufClusterSelf[
+                self.endpoint.device.ieee
+            ].endpoint.tuya_manufacturer.write_attributes(
+                {ME167_TEMP_CALIBRATION_ATTR: value * 10},
+                manufacturer=None,
+            )
+        return ([foundation.WriteAttributesStatusRecord(foundation.Status.SUCCESS)],)
+
+
 class ME167(TuyaThermostat):
     """ME167 Thermostatic radiator valve and clones."""
 
@@ -348,6 +409,7 @@ class ME167(TuyaThermostat):
         """Init device."""
         self.thermostat_onoff_bus = Bus()
         self.ME167ManufCluster_bus = Bus()
+        self.ME167TempCalibration_bus = Bus()
         super().__init__(*args, **kwargs)
 
     signature = {
@@ -407,6 +469,12 @@ class ME167(TuyaThermostat):
                 INPUT_CLUSTERS: [
                     ME167ChildLock,
                 ],
+                OUTPUT_CLUSTERS: [],
+            },
+            3: {
+                PROFILE_ID: zha.PROFILE_ID,
+                DEVICE_TYPE: zha.DeviceType.CONSUMPTION_AWARENESS_DEVICE,
+                INPUT_CLUSTERS: [ME167TempCalibration],
                 OUTPUT_CLUSTERS: [],
             },
         }
