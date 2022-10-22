@@ -215,7 +215,7 @@ class ME167ManufCluster(TuyaManufClusterAttributes):
             )
         elif attrid == ME167_BATTERY_STATE_ATTR:
             self.endpoint.device.battery_bus.listener_event(
-                "battery_change", 0 if value == 1 else 127
+                "battery_change", 0 if value == 1 else 100
             )
         elif attrid == ME167_TEMP_CALIBRATION_ATTR:
             self.endpoint.device.ME167TempCalibration_bus.listener_event(
