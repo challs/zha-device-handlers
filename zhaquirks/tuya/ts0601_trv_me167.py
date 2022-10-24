@@ -50,7 +50,7 @@ _LOGGER = logging.getLogger(__name__)
 
 ME167_TEMPERATURE_ATTR = 0x0205  # [0, 0, 0, 210] current room temp (decidegree)
 ME167_TARGET_TEMP_ATTR = 0x0204  # [0, 0, 0, 190] target room temp (decidegree)
-ME167_TEMP_CALIBRATION_ATTR = 0x022F  # (decidegree)
+ME167_TEMP_CALIBRATION_ATTR = 0x022F  # (degree)
 ME167_CHILD_LOCK_ATTR = 0x0107  # [0] unlocked [1] child-locked
 ME167_BATTERY_STATE_ATTR = 0x0523  # [0] OK [1] Empty
 ME167_MODE_ATTR = 0x0402  # [0] auto [1] heat [2] off
