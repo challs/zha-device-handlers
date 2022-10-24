@@ -171,7 +171,7 @@ class ME167ManufCluster(TuyaManufClusterAttributes):
         {
             ME167_TEMPERATURE_ATTR: ("temperature", t.uint32_t, True),
             ME167_TARGET_TEMP_ATTR: ("target_temperature", t.uint32_t, True),
-            ME167_TEMP_CALIBRATION_ATTR: ("target_temperature", t.uint32_t, True),
+            ME167_TEMP_CALIBRATION_ATTR: ("target_temperature", t.int32s, True),
             ME167_CHILD_LOCK_ATTR: ("child_lock", t.uint8_t, True),
             ME167_MODE_ATTR: ("mode", t.uint8_t, True),
             ME167_STATE_ATTR: ("state", t.uint8_t, True),
@@ -187,7 +187,7 @@ class ME167ManufCluster(TuyaManufClusterAttributes):
         ),
         ME167_TEMP_CALIBRATION_ATTR: (
             "local_temperature_calibration",
-            lambda value: value * 10,
+            None,
         ),
     }
 
@@ -219,7 +219,7 @@ class ME167ManufCluster(TuyaManufClusterAttributes):
             )
         elif attrid == ME167_TEMP_CALIBRATION_ATTR:
             self.endpoint.device.ME167TempCalibration_bus.listener_event(
-                "set_value", value / 10
+                "set_value", value
             )
 
 
@@ -256,7 +256,7 @@ class ME167Thermostat(TuyaThermostatCluster):
         "operation_preset": (ME167_MODE_ATTR, None),
         "local_temperature_calibration": (
             ME167_TEMP_CALIBRATION_ATTR,
-            lambda value: round(value / 10),
+            None,
         ),
     }
 
@@ -371,7 +371,7 @@ class ME167TempCalibration(LocalDataCluster, AnalogOutput):
         )
         self._update_attribute(self.attributes_by_name["max_present_value"].id, 10)
         self._update_attribute(self.attributes_by_name["min_present_value"].id, -10)
-        self._update_attribute(self.attributes_by_name["resolution"].id, 0.1)
+        self._update_attribute(self.attributes_by_name["resolution"].id, 1)
         self._update_attribute(self.attributes_by_name["application_type"].id, 13 << 16)
         self._update_attribute(self.attributes_by_name["engineering_units"].id, 62)
 
@@ -396,7 +396,7 @@ class ME167TempCalibration(LocalDataCluster, AnalogOutput):
             await ME167ManufClusterSelf[
                 self.endpoint.device.ieee
             ].endpoint.tuya_manufacturer.write_attributes(
-                {ME167_TEMP_CALIBRATION_ATTR: value * 10},
+                {ME167_TEMP_CALIBRATION_ATTR: value},
                 manufacturer=None,
             )
         return ([foundation.WriteAttributesStatusRecord(foundation.Status.SUCCESS)],)
